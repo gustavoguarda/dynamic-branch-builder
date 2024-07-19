@@ -1,0 +1,46 @@
+definitions:
+  services:
+    push-image-front: &push-image-front
+      name: Build and Push Docker Front Image
+      image: amazon/aws-cli
+      caches:
+        - pip
+      services:
+        - docker
+      docker:
+        memory: 2048
+      script:
+        - IMAGE="777326530671.dkr.ecr.sa-east-1.amazonaws.com/front"
+        - TAG=${BITBUCKET_BRANCH:-$BITBUCKET_TAG}
+        - aws configure set aws_access_key_id "${AWS_KEY}"
+        - aws configure set aws_secret_access_key "${AWS_SECRET}"
+        - eval $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION | sed 's;https://;;g')
+        - docker build -t $IMAGE:$TAG -f Dockerfile.prod -m 4g .
+        - docker push $IMAGE:$TAG
+
+pipelines:
+  branches:
+    master:
+      - step: *push-image-front
+        size: 2x
+        services: [docker]
+  pull-requests:
+    '**':
+      - step:
+          name: Branch Dinâmica
+          image:
+            name: atlassian/default-image:4
+          caches: 
+            - node
+          script:
+            - npm install
+            - npm run build:dev
+            - BRANCH_DIR=$(sed 's/\//-/g' <<< $BITBUCKET_BRANCH | tr '[:upper:]' '[:lower:]')
+            - echo -e "$SSH_PRIVATE_KEY" > ssh_file.tmp
+            - base64 -d ssh_file.tmp > ssh_file
+            - chmod 600 ssh_file
+            - eval "$(ssh-agent -s)"
+            - ssh-add ssh_file
+            - tar -czvf $BRANCH_DIR.tar.gz --transform s/dist/$BRANCH_DIR/ dist
+            - scp -P 2222 -o StrictHostKeyChecking=no $BRANCH_DIR.tar.gz gustavoguarda@0.0.0.0:/var/www/projeto/branch/
+            - ssh -p 2222 gustavoguarda@0.0.0.0 "cd /var/www/projeto/branch/ && rm -rf $BRANCH_DIR && tar -xvzf $BRANCH_DIR.tar.gz && rm $BRANCH_DIR.tar.gz"
