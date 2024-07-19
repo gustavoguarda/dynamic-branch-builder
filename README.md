@@ -59,13 +59,13 @@ To serve the dynamically created branches, add the following configuration to yo
 
 ```nginx
 location /branch {
-    root /var/www/mart-front/;
+    root /var/www/projeto/;
     index index.html;
     try_files $uri $uri/ /index.html;
 }
 ```
 
-This configuration sets up Nginx to serve files from the /var/www/mart-front/ directory for any requests to /branch, falling back to index.html for single-page application (SPA) routing.
+This configuration sets up Nginx to serve files from the /var/www/projeto/ directory for any requests to /branch, falling back to index.html for single-page application (SPA) routing.
 
 ### Prerequisites
 
